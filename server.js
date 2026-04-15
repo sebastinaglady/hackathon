@@ -67,30 +67,33 @@ function computeMetrics(data) {
     };
 }
 
-async function getAISuggestions(metrics) {
+async function getAISuggestions(metrics, extra = {}) {
     const { sales, expenses, inventory, currency, profit, profitMargin, score, problems } = metrics;
+    const { revenue_breakdown, expense_breakdown, trend, observations } = extra;
 
-    const prompt = `You are a concise business advisor. A business has submitted these monthly metrics:
+    let context = `You are a concise business advisor. A business has these monthly metrics:
 - Currency: ${currency}
-- Sales: ${sales}
-- Expenses: ${expenses}
-- Inventory Value: ${inventory}
+- Sales: ${sales}, Expenses: ${expenses}, Inventory: ${inventory}
 - Net Profit: ${profit} (${profitMargin}% margin)
 - Health Score: ${score}/100
-- Detected Issues: ${problems.length > 0 ? problems.join(', ') : 'None'}
+- Detected Issues: ${problems.length > 0 ? problems.join(', ') : 'None'}`;
 
-Provide exactly 3-4 short, actionable recommendations specific to their numbers. Each should be 1-2 sentences max. Be direct and concrete, not generic. Consider their currency region (${currency}) for market-specific advice.`;
+    if (trend) context += `\n- Trend: ${trend}`;
+    if (revenue_breakdown?.length) context += `\n- Revenue by category: ${revenue_breakdown.map(r => `${r.label} ${r.pct}%`).join(', ')}`;
+    if (expense_breakdown?.length) context += `\n- Expense breakdown: ${expense_breakdown.map(e => `${e.label} ${e.pct}%`).join(', ')}`;
+    if (observations?.length) context += `\n- Key observations from report: ${observations.join('; ')}`;
+
+    context += `\n\nProvide exactly 4 short, actionable recommendations specific to their numbers. Each 1-2 sentences. Be direct, concrete, and reference the actual figures. Consider ${currency} market context.`;
 
     const stream = anthropic.messages.stream({
         model: 'claude-opus-4-6',
-        max_tokens: 512,
+        max_tokens: 600,
         thinking: { type: 'adaptive' },
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: context }],
     });
 
     const response = await stream.finalMessage();
     const text = response.content.find(b => b.type === 'text')?.text || '';
-
     const lines = text.split('\n').map(l => l.replace(/^[-•*\d.]\s*/, '').trim()).filter(Boolean);
     return lines.length >= 2 ? lines : [text];
 }
@@ -102,6 +105,7 @@ async function analyzeData(data) {
     return {
         score: metrics.score,
         profit: metrics.profit,
+        profitMargin: metrics.profitMargin,
         problems: metrics.problems,
         suggestions,
         simulation: metrics.simulation,
@@ -111,10 +115,10 @@ async function analyzeData(data) {
 }
 
 async function analyzeFromPDF(pdfBase64) {
-    // Step 1: Extract structured data from the PDF
+    // Step 1: Extract full structured data from the PDF in one call
     const extractResponse = await anthropic.messages.create({
         model: 'claude-opus-4-6',
-        max_tokens: 512,
+        max_tokens: 1024,
         system: 'You are a financial data extraction assistant. Extract numbers accurately and respond only with valid JSON.',
         messages: [{
             role: 'user',
@@ -125,9 +129,18 @@ async function analyzeFromPDF(pdfBase64) {
                 },
                 {
                     type: 'text',
-                    text: `Extract business financial metrics from this document. Return ONLY a JSON object, no other text:
-{"sales": <monthly sales as number>, "expenses": <monthly expenses as number>, "inventory": <inventory value as number>, "currency": "<USD|EUR|GBP|INR|JPY>"}
-Use 0 for any missing values. Default currency to USD if not mentioned.`,
+                    text: `Extract all business financial data from this document. Return ONLY this JSON (no extra text):
+{
+  "sales": <latest monthly sales as number>,
+  "expenses": <latest monthly expenses as number>,
+  "inventory": <total inventory value as number>,
+  "currency": "<USD|EUR|GBP|INR|JPY>",
+  "trend": "<improving|declining|stable>",
+  "revenue_breakdown": [{"label": "<category>", "value": <number>, "pct": <percent as number>}],
+  "expense_breakdown": [{"label": "<category>", "value": <number>, "pct": <percent as number>}],
+  "observations": ["<key insight from the document>"]
+}
+Use 0 for missing values. Default currency to USD. Include up to 5 items each in breakdowns. Up to 4 observations.`,
                 },
             ],
         }],
@@ -135,23 +148,33 @@ Use 0 for any missing values. Default currency to USD if not mentioned.`,
 
     const extractText = extractResponse.content.find(b => b.type === 'text')?.text || '{}';
     const jsonMatch = extractText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Could not extract financial data from the PDF. Please ensure the PDF contains sales, expenses, and inventory figures.');
+    if (!jsonMatch) throw new Error('Could not extract financial data from the PDF. Please ensure it contains sales, expenses, and inventory figures.');
     const extracted = JSON.parse(jsonMatch[0]);
 
-    // Step 2: Run rule-based metrics on extracted data
+    // Step 2: Compute rule-based metrics
     const metrics = computeMetrics(extracted);
 
-    // Step 3: Get AI suggestions with full context
-    const suggestions = await getAISuggestions(metrics);
+    // Step 3: AI suggestions with full context
+    const suggestions = await getAISuggestions(metrics, {
+        revenue_breakdown: extracted.revenue_breakdown,
+        expense_breakdown: extracted.expense_breakdown,
+        trend: extracted.trend,
+        observations: extracted.observations,
+    });
 
     return {
         score: metrics.score,
         profit: metrics.profit,
+        profitMargin: metrics.profitMargin,
         problems: metrics.problems,
         suggestions,
         simulation: metrics.simulation,
         symbol: metrics.symbol,
         currency: metrics.currency,
+        trend: extracted.trend,
+        revenue_breakdown: extracted.revenue_breakdown || [],
+        expense_breakdown: extracted.expense_breakdown || [],
+        observations: extracted.observations || [],
     };
 }
 

@@ -346,6 +346,25 @@ button {
     margin-bottom: 0.5rem;
 }
 
+.kpi-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-glass);
+}
+
+.kpi-meta-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.kpi-meta-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
 /* Lists */
 .styled-list {
     list-style: none;
@@ -365,6 +384,59 @@ button {
 
 .list-card {
     height: 100%;
+}
+
+/* Breakdown Cards */
+.breakdown-card {
+    grid-column: span 1;
+}
+
+.breakdown-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.breakdown-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.breakdown-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+}
+
+.breakdown-value {
+    font-weight: 600;
+}
+
+.breakdown-pct {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.breakdown-bar-bg {
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.breakdown-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.8s ease-out;
+}
+
+/* Observations card */
+.observations-card {
+    grid-column: span 2;
+}
+.observations-card li {
+    border-left-color: var(--status-yellow);
 }
 
 /* Simulation details */

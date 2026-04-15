@@ -139,8 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. Profit
         const profitValue = document.getElementById('profit-value');
         const profitLabel = document.getElementById('profit-label');
-
         const symbol = data.symbol || '$';
+
         profitValue.textContent = `${symbol}${data.profit.toLocaleString()}`;
         if (data.profit > 0) {
             profitLabel.textContent = "Profitable";
@@ -148,6 +148,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             profitLabel.textContent = "Loss Making";
             profitLabel.className = "badge bg-red";
+        }
+
+        // Profit margin & trend
+        const marginEl = document.getElementById('profit-margin');
+        if (marginEl) marginEl.textContent = data.profitMargin != null ? `${data.profitMargin}%` : '—';
+
+        const trendEl = document.getElementById('trend-value');
+        if (trendEl && data.trend) {
+            const trendMap = { improving: { text: '▲ Improving', cls: 'status-green' }, declining: { text: '▼ Declining', cls: 'status-red' }, stable: { text: '→ Stable', cls: 'status-yellow' } };
+            const t = trendMap[data.trend] || { text: data.trend, cls: '' };
+            trendEl.textContent = t.text;
+            trendEl.className = `kpi-meta-value ${t.cls}`;
         }
 
         // 3. Problems List
@@ -175,7 +187,48 @@ document.addEventListener('DOMContentLoaded', () => {
             suggestionsList.appendChild(li);
         });
 
-        // 5. Simulation
+        // 5. Revenue Breakdown
+        const revCard = document.getElementById('revenue-breakdown-card');
+        const revEl = document.getElementById('revenue-breakdown');
+        if (data.revenue_breakdown && data.revenue_breakdown.length > 0) {
+            revEl.innerHTML = '';
+            revCard.style.display = '';
+            data.revenue_breakdown.forEach(item => {
+                revEl.appendChild(buildBar(item.label, item.value, item.pct, symbol, 'var(--primary)'));
+            });
+        } else {
+            revCard.style.display = 'none';
+        }
+
+        // 6. Expense Breakdown
+        const expCard = document.getElementById('expense-breakdown-card');
+        const expEl = document.getElementById('expense-breakdown');
+        if (data.expense_breakdown && data.expense_breakdown.length > 0) {
+            expEl.innerHTML = '';
+            expCard.style.display = '';
+            data.expense_breakdown.forEach(item => {
+                expEl.appendChild(buildBar(item.label, item.value, item.pct, symbol, 'var(--status-red)'));
+            });
+        } else {
+            expCard.style.display = 'none';
+        }
+
+        // 7. Key Observations
+        const obsCard = document.getElementById('observations-card');
+        const obsList = document.getElementById('observations-list');
+        if (data.observations && data.observations.length > 0) {
+            obsList.innerHTML = '';
+            obsCard.style.display = '';
+            data.observations.forEach(obs => {
+                const li = document.createElement('li');
+                li.textContent = obs;
+                obsList.appendChild(li);
+            });
+        } else {
+            obsCard.style.display = 'none';
+        }
+
+        // 8. Simulation
         const simScenarioText = document.getElementById('sim-scenario-text');
         const simProfit = document.getElementById('sim-new-profit');
         const simChange = document.getElementById('sim-change');
@@ -183,11 +236,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.simulation) {
             simScenarioText.textContent = data.simulation.scenario;
             simProfit.textContent = `${symbol}${data.simulation.new_profit.toLocaleString()}`;
-
             const changeSign = data.simulation.profit_change >= 0 ? '+' : '-';
             const absChange = Math.abs(data.simulation.profit_change);
             simChange.textContent = `${changeSign}${symbol}${absChange.toLocaleString()}`;
             simChange.className = data.simulation.profit_change >= 0 ? 'value impact-positive' : 'value impact-negative';
         }
+    }
+
+    function buildBar(label, value, pct, symbol, color) {
+        const row = document.createElement('div');
+        row.className = 'breakdown-row';
+        row.innerHTML = `
+            <div class="breakdown-label">
+                <span>${label}</span>
+                <span class="breakdown-value">${symbol}${Number(value).toLocaleString()} <span class="breakdown-pct">(${pct}%)</span></span>
+            </div>
+            <div class="breakdown-bar-bg">
+                <div class="breakdown-bar-fill" style="width:0%; background:${color}" data-pct="${pct}"></div>
+            </div>`;
+        setTimeout(() => {
+            row.querySelector('.breakdown-bar-fill').style.width = `${pct}%`;
+        }, 100);
+        return row;
     }
 });

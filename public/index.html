@@ -80,22 +80,44 @@
                     <h3>Current Profit</h3>
                     <div class="kpi-value" id="profit-value">$0.00</div>
                     <div id="profit-label" class="badge">Status</div>
+                    <div class="kpi-meta">
+                        <span class="kpi-meta-label">Profit Margin</span>
+                        <span class="kpi-meta-value" id="profit-margin">—</span>
+                    </div>
+                    <div class="kpi-meta">
+                        <span class="kpi-meta-label">Trend</span>
+                        <span class="kpi-meta-value" id="trend-value">—</span>
+                    </div>
                 </div>
 
                 <!-- Problems List -->
                 <div class="glass-card list-card problems-card">
                     <h3>Detected Issues</h3>
-                    <ul id="problems-list" class="styled-list">
-                        <!-- Populated by JS -->
-                    </ul>
+                    <ul id="problems-list" class="styled-list"></ul>
                 </div>
 
                 <!-- Suggestions List -->
                 <div class="glass-card list-card suggestions-card">
                     <h3>Recommended Actions</h3>
-                    <ul id="suggestions-list" class="styled-list">
-                        <!-- Populated by JS -->
-                    </ul>
+                    <ul id="suggestions-list" class="styled-list"></ul>
+                </div>
+
+                <!-- Revenue Breakdown -->
+                <div class="glass-card breakdown-card" id="revenue-breakdown-card">
+                    <h3>Revenue Breakdown</h3>
+                    <div id="revenue-breakdown" class="breakdown-list"></div>
+                </div>
+
+                <!-- Expense Breakdown -->
+                <div class="glass-card breakdown-card" id="expense-breakdown-card">
+                    <h3>Expense Breakdown</h3>
+                    <div id="expense-breakdown" class="breakdown-list"></div>
+                </div>
+
+                <!-- Key Observations -->
+                <div class="glass-card list-card observations-card" id="observations-card">
+                    <h3>Key Observations</h3>
+                    <ul id="observations-list" class="styled-list"></ul>
                 </div>
 
                 <!-- Simulation Results -->
