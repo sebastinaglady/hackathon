@@ -21,40 +21,27 @@
             </div>
         </section>
 
-        <!-- Form Section -->
+        <!-- Upload Section -->
         <section id="form-page" class="view">
             <div class="glass-card form-container">
-                <h2>Business Metrics</h2>
-                <p class="section-desc">Enter your latest monthly numbers below.</p>
-                
-                <form id="analysis-form">
-                    <div class="input-group">
-                        <label for="currency">Business Currency</label>
-                        <select id="currency" name="currency" required>
-                            <option value="USD">USD ($)</option>
-                            <option value="EUR">EUR (€)</option>
-                            <option value="GBP">GBP (£)</option>
-                            <option value="INR">INR (₹)</option>
-                            <option value="JPY">JPY (¥)</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label for="sales">Monthly Sales</label>
-                        <input type="number" id="sales" name="sales" step="any" min="0" required placeholder="e.g. 15000.50">
-                    </div>
-                    <div class="input-group">
-                        <label for="expenses">Monthly Expenses</label>
-                        <input type="number" id="expenses" name="expenses" step="any" min="0" required placeholder="e.g. 10000.75">
-                    </div>
-                    <div class="input-group">
-                        <label for="inventory">Inventory Value</label>
-                        <input type="number" id="inventory" name="inventory" step="any" min="0" required placeholder="e.g. 20000.25">
-                    </div>
-                    
-                    <button type="submit" id="analyze-btn" class="primary-btn submit-btn">
-                        <span>Analyze Business</span>
-                    </button>
-                </form>
+                <h2>Upload Business Report</h2>
+                <p class="section-desc">Upload a PDF containing your sales, expenses, and inventory figures.</p>
+
+                <div class="upload-zone" id="upload-zone">
+                    <input type="file" id="pdf-input" accept=".pdf" hidden>
+                    <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="upload-icon">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                    </svg>
+                    <p class="upload-label">Drag &amp; drop your PDF here</p>
+                    <p class="upload-or">or</p>
+                    <button type="button" class="secondary-btn" id="browse-btn">Browse files</button>
+                    <p id="file-name" class="file-name"></p>
+                </div>
+
+                <button id="analyze-btn" class="primary-btn submit-btn" disabled>Analyze Business</button>
             </div>
         </section>
 
@@ -62,8 +49,8 @@
         <section id="loading-page" class="view">
             <div class="loader-container">
                 <div class="spinner"></div>
-                <h2>Analyzing Metrics...</h2>
-                <p>Applying rule-based engine and simulations</p>
+                <h2>Analyzing your report...</h2>
+                <p>Reading PDF and generating AI insights</p>
             </div>
         </section>
 

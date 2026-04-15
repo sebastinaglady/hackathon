@@ -91,13 +91,57 @@ Provide exactly 3-4 short, actionable recommendations specific to their numbers.
     const response = await stream.finalMessage();
     const text = response.content.find(b => b.type === 'text')?.text || '';
 
-    // Split into bullet points if Claude used them, otherwise split by sentence
     const lines = text.split('\n').map(l => l.replace(/^[-•*\d.]\s*/, '').trim()).filter(Boolean);
     return lines.length >= 2 ? lines : [text];
 }
 
 async function analyzeData(data) {
     const metrics = computeMetrics(data);
+    const suggestions = await getAISuggestions(metrics);
+
+    return {
+        score: metrics.score,
+        profit: metrics.profit,
+        problems: metrics.problems,
+        suggestions,
+        simulation: metrics.simulation,
+        symbol: metrics.symbol,
+        currency: metrics.currency,
+    };
+}
+
+async function analyzeFromPDF(pdfBase64) {
+    // Step 1: Extract structured data from the PDF
+    const extractResponse = await anthropic.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 512,
+        system: 'You are a financial data extraction assistant. Extract numbers accurately and respond only with valid JSON.',
+        messages: [{
+            role: 'user',
+            content: [
+                {
+                    type: 'document',
+                    source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
+                },
+                {
+                    type: 'text',
+                    text: `Extract business financial metrics from this document. Return ONLY a JSON object, no other text:
+{"sales": <monthly sales as number>, "expenses": <monthly expenses as number>, "inventory": <inventory value as number>, "currency": "<USD|EUR|GBP|INR|JPY>"}
+Use 0 for any missing values. Default currency to USD if not mentioned.`,
+                },
+            ],
+        }],
+    });
+
+    const extractText = extractResponse.content.find(b => b.type === 'text')?.text || '{}';
+    const jsonMatch = extractText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Could not extract financial data from the PDF. Please ensure the PDF contains sales, expenses, and inventory figures.');
+    const extracted = JSON.parse(jsonMatch[0]);
+
+    // Step 2: Run rule-based metrics on extracted data
+    const metrics = computeMetrics(extracted);
+
+    // Step 3: Get AI suggestions with full context
     const suggestions = await getAISuggestions(metrics);
 
     return {
@@ -118,7 +162,7 @@ const server = http.createServer((req, res) => {
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                const result = await analyzeData(data);
+                const result = data.pdf ? await analyzeFromPDF(data.pdf) : await analyzeData(data);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
             } catch (err) {
