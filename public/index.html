@@ -8,14 +8,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Top Nav -->
+    <nav class="top-nav">
+        <span class="nav-brand">AI Business Doctor</span>
+        <div class="nav-user" id="nav-user" style="display:none">
+            <img id="user-avatar" class="user-avatar" src="" alt="">
+            <span id="user-name" class="user-name"></span>
+            <a href="/auth/logout" class="secondary-btn logout-btn">Logout</a>
+        </div>
+    </nav>
+
     <div id="app">
-        <!-- Landing Page Section -->
+        <!-- Landing Page -->
         <section id="landing-page" class="view section-active">
             <div class="glass-card main-hero">
                 <h1>AI Business Doctor</h1>
                 <p class="subtitle">Diagnose your business with intelligent insights</p>
                 <div class="image-placeholder glow">
-                    <svg viewBox="0 0 24 24" width="64" height="64" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="hero-icon"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    <svg viewBox="0 0 24 24" width="64" height="64" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
                 </div>
                 <button id="start-btn" class="primary-btn">Start Analysis</button>
             </div>
@@ -45,7 +57,7 @@
             </div>
         </section>
 
-        <!-- Loading View -->
+        <!-- Loading -->
         <section id="loading-page" class="view">
             <div class="loader-container">
                 <div class="spinner"></div>
@@ -57,12 +69,15 @@
         <!-- Results Dashboard -->
         <section id="results-page" class="view">
             <header class="dashboard-header">
-                <h2>Analysis Results</h2>
+                <div>
+                    <h2>Analysis Results</h2>
+                    <p class="dashboard-industry" id="dashboard-industry"></p>
+                </div>
                 <button id="restart-btn" class="secondary-btn">New Analysis</button>
             </header>
 
             <div class="dashboard-grid">
-                <!-- Score Card -->
+                <!-- Health Score -->
                 <div class="glass-card score-card">
                     <h3>Health Score</h3>
                     <div class="score-circle" id="score-indicator">
@@ -75,7 +90,7 @@
                     <p id="score-label" class="score-label">Calculating...</p>
                 </div>
 
-                <!-- KPI Card -->
+                <!-- KPI -->
                 <div class="glass-card kpi-card">
                     <h3>Current Profit</h3>
                     <div class="kpi-value" id="profit-value">$0.00</div>
@@ -90,13 +105,50 @@
                     </div>
                 </div>
 
-                <!-- Problems List -->
+                <!-- Industry Comparison -->
+                <div class="glass-card comparison-card" id="comparison-card">
+                    <h3>Industry Comparison</h3>
+                    <p class="comparison-vs">vs. <strong id="comp-industry-label">—</strong></p>
+                    <div class="comp-metric">
+                        <span class="comp-metric-label">Profit Margin</span>
+                        <div class="comp-rows">
+                            <div class="comp-row">
+                                <span class="comp-row-label">Yours</span>
+                                <div class="comp-bar-bg"><div class="comp-bar-fill comp-yours" id="comp-margin-yours-bar"></div></div>
+                                <span class="comp-row-val" id="comp-margin-yours-val">—</span>
+                            </div>
+                            <div class="comp-row">
+                                <span class="comp-row-label">Industry</span>
+                                <div class="comp-bar-bg"><div class="comp-bar-fill comp-industry" id="comp-margin-ind-bar"></div></div>
+                                <span class="comp-row-val" id="comp-margin-ind-val">—</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="comp-metric">
+                        <span class="comp-metric-label">Expense Ratio</span>
+                        <div class="comp-rows">
+                            <div class="comp-row">
+                                <span class="comp-row-label">Yours</span>
+                                <div class="comp-bar-bg"><div class="comp-bar-fill comp-yours" id="comp-exp-yours-bar"></div></div>
+                                <span class="comp-row-val" id="comp-exp-yours-val">—</span>
+                            </div>
+                            <div class="comp-row">
+                                <span class="comp-row-label">Industry</span>
+                                <div class="comp-bar-bg"><div class="comp-bar-fill comp-industry" id="comp-exp-ind-bar"></div></div>
+                                <span class="comp-row-val" id="comp-exp-ind-val">—</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="comp-verdict" id="comp-verdict"></div>
+                </div>
+
+                <!-- Problems -->
                 <div class="glass-card list-card problems-card">
                     <h3>Detected Issues</h3>
                     <ul id="problems-list" class="styled-list"></ul>
                 </div>
 
-                <!-- Suggestions List -->
+                <!-- Suggestions -->
                 <div class="glass-card list-card suggestions-card">
                     <h3>Recommended Actions</h3>
                     <ul id="suggestions-list" class="styled-list"></ul>
@@ -120,7 +172,7 @@
                     <ul id="observations-list" class="styled-list"></ul>
                 </div>
 
-                <!-- Simulation Results -->
+                <!-- Simulation -->
                 <div class="glass-card simulation-card">
                     <h3>What-If Simulator</h3>
                     <p class="sim-scenario" id="sim-scenario-text">Loading scenario...</p>
@@ -138,6 +190,7 @@
             </div>
         </section>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
