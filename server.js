@@ -250,7 +250,7 @@ Use 0 for missing values. Default currency to USD. Up to 5 breakdown items. Up t
 }
 
 // ── Routes ───────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 app.get('/', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
