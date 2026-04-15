@@ -1,11 +1,12 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const PORT = 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const anthropic = new Anthropic();
 
-// MIME types for static files
 const MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -18,98 +19,117 @@ const MIME_TYPES = {
     '.ico': 'image/x-icon',
 };
 
-// Currency configuration
 const CURRENCY_MAP = {
-    'USD': { symbol: '$', insight: 'Monitor Federal Reserve interest rate hikes which may impact borrowing costs.' },
-    'EUR': { symbol: '€', insight: 'Watch European Central Bank inflation targets; consider Eurozone-wide supply chain risks.' },
-    'GBP': { symbol: '£', insight: 'Stay updated on UK-specific trade regulations and Sterling volatility.' },
-    'INR': { symbol: '₹', insight: 'Consider the impact of local GST regulations and seasonal demand shifts.' },
-    'JPY': { symbol: '¥', insight: 'Monitor Bank of Japan yield curve control policies and export-heavy market trends.' },
+    'USD': { symbol: '$' },
+    'EUR': { symbol: '€' },
+    'GBP': { symbol: '£' },
+    'INR': { symbol: '₹' },
+    'JPY': { symbol: '¥' },
 };
 
-function analyzeData(data) {
+function computeMetrics(data) {
     const sales = parseFloat(data.sales) || 0;
     const expenses = parseFloat(data.expenses) || 0;
     const inventory = parseFloat(data.inventory) || 0;
     const currency = data.currency || 'USD';
 
-    const currInfo = CURRENCY_MAP[currency] || { symbol: '$', insight: 'Maintain global market awareness.' };
-    const symbol = currInfo.symbol;
-
-    // 1. Profit Calculation
+    const symbol = (CURRENCY_MAP[currency] || { symbol: '$' }).symbol;
     const profit = sales - expenses;
+    const overstock = inventory > sales;
+    const profitMargin = sales > 0 ? profit / sales : 0;
 
-    // 2. Problem Detection Engine
     const problems = [];
     if (profit < 0) problems.push("Negative profit (Loss)");
-
-    const overstock = inventory > sales;
-    if (overstock) problems.push(`Overstocking detected (Inventory > Sales in ${currency})`);
-
-    const profitMargin = sales > 0 ? profit / sales : 0;
+    if (overstock) problems.push(`Overstocking detected (Inventory > Sales)`);
     if (sales > 0 && profitMargin < 0.1 && profit >= 0) problems.push("Low profit margin (< 10%)");
 
-    // 3. Health Score System (Base 50)
     let score = 50;
     if (profit > 0) score += 20;
     if (profitMargin >= 0.2) score += 20;
     if (overstock) score -= 30;
     score = Math.max(0, Math.min(100, score));
 
-    // 4. Recommendation Engine
-    const suggestions = [];
-    for (const prob of problems) {
-        if (prob.includes("Overstocking")) suggestions.push("Reduce inventory by running a clearance sale or halting orders.");
-        if (prob.includes("Negative profit")) suggestions.push("Critically review and cut non-essential expenses or increase pricing.");
-        if (prob.includes("Low profit margin")) suggestions.push("Adjust pricing strategy upwards or find cheaper wholesale suppliers.");
-    }
-    if (problems.length === 0) suggestions.push("Keep up the good work! Maintain steady operations.");
-
-    // Add currency-specific insight
-    suggestions.push(`Currency Focus (${currency}): ${currInfo.insight}`);
-
-    // 5. Simulation Engine (10% price increase, 5% volume drop)
-    const simPriceIncreaseRate = 0.10;
-    const simDemandDropRate = 0.05;
-    const simulatedSales = sales * (1 + simPriceIncreaseRate) * (1 - simDemandDropRate);
-    const simulatedProfit = simulatedSales - expenses;
-    const simulatedChange = simulatedProfit - profit;
+    const simSales = sales * 1.10 * 0.95;
+    const simProfit = simSales - expenses;
 
     return {
-        score: Math.round(score),
+        sales, expenses, inventory, currency, symbol,
         profit: Math.round(profit * 100) / 100,
+        profitMargin: Math.round(profitMargin * 1000) / 10,
+        score: Math.round(score),
         problems,
-        suggestions,
+        overstock,
         simulation: {
             scenario: "Increase price by 10% (Assuming 5% volume drop)",
-            new_profit: Math.round(simulatedProfit * 100) / 100,
-            profit_change: Math.round(simulatedChange * 100) / 100,
+            new_profit: Math.round(simProfit * 100) / 100,
+            profit_change: Math.round((simProfit - profit) * 100) / 100,
         },
-        symbol,
-        currency,
+    };
+}
+
+async function getAISuggestions(metrics) {
+    const { sales, expenses, inventory, currency, profit, profitMargin, score, problems } = metrics;
+
+    const prompt = `You are a concise business advisor. A business has submitted these monthly metrics:
+- Currency: ${currency}
+- Sales: ${sales}
+- Expenses: ${expenses}
+- Inventory Value: ${inventory}
+- Net Profit: ${profit} (${profitMargin}% margin)
+- Health Score: ${score}/100
+- Detected Issues: ${problems.length > 0 ? problems.join(', ') : 'None'}
+
+Provide exactly 3-4 short, actionable recommendations specific to their numbers. Each should be 1-2 sentences max. Be direct and concrete, not generic. Consider their currency region (${currency}) for market-specific advice.`;
+
+    const stream = anthropic.messages.stream({
+        model: 'claude-opus-4-6',
+        max_tokens: 512,
+        thinking: { type: 'adaptive' },
+        messages: [{ role: 'user', content: prompt }],
+    });
+
+    const response = await stream.finalMessage();
+    const text = response.content.find(b => b.type === 'text')?.text || '';
+
+    // Split into bullet points if Claude used them, otherwise split by sentence
+    const lines = text.split('\n').map(l => l.replace(/^[-•*\d.]\s*/, '').trim()).filter(Boolean);
+    return lines.length >= 2 ? lines : [text];
+}
+
+async function analyzeData(data) {
+    const metrics = computeMetrics(data);
+    const suggestions = await getAISuggestions(metrics);
+
+    return {
+        score: metrics.score,
+        profit: metrics.profit,
+        problems: metrics.problems,
+        suggestions,
+        simulation: metrics.simulation,
+        symbol: metrics.symbol,
+        currency: metrics.currency,
     };
 }
 
 const server = http.createServer((req, res) => {
-    // Handle POST /analyze
     if (req.method === 'POST' && req.url === '/analyze') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                const result = analyzeData(data);
+                const result = await analyzeData(data);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
             } catch (err) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid request body' }));
+                console.error(err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message || 'Analysis failed' }));
             }
         });
         return;
     }
 
-    // Serve static files from /public
     if (req.method === 'GET') {
         let urlPath = req.url === '/' ? '/index.html' : req.url;
         const filePath = path.join(PUBLIC_DIR, urlPath);
@@ -133,6 +153,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`Starting API + Static server on port ${PORT}...`);
+    console.log(`Starting AI Business Doctor on port ${PORT}...`);
     console.log(`Open http://localhost:${PORT} in your browser.`);
 });
