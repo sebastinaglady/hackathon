@@ -1,59 +1,90 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Nav elements
     const landingPage = document.getElementById('landing-page');
     const formPage = document.getElementById('form-page');
     const loadingPage = document.getElementById('loading-page');
     const resultsPage = document.getElementById('results-page');
 
-    // Buttons
     const startBtn = document.getElementById('start-btn');
     const restartBtn = document.getElementById('restart-btn');
-    const analysisForm = document.getElementById('analysis-form');
+    const browseBtn = document.getElementById('browse-btn');
+    const pdfInput = document.getElementById('pdf-input');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const uploadZone = document.getElementById('upload-zone');
+    const fileNameEl = document.getElementById('file-name');
 
-    // Navigation Logic
+    let selectedFile = null;
+
     function showView(viewElement) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('section-active'));
         viewElement.classList.add('section-active');
     }
 
-    startBtn.addEventListener('click', () => {
-        showView(formPage);
-    });
+    startBtn.addEventListener('click', () => showView(formPage));
 
     restartBtn.addEventListener('click', () => {
-        analysisForm.reset();
+        selectedFile = null;
+        pdfInput.value = '';
+        fileNameEl.textContent = '';
+        analyzeBtn.disabled = true;
+        uploadZone.classList.remove('upload-zone--active');
         showView(landingPage);
     });
 
-    // Form Submission
-    analysisForm.addEventListener('submit', async (e) => {
+    // File selection via button
+    browseBtn.addEventListener('click', () => pdfInput.click());
+
+    pdfInput.addEventListener('change', () => {
+        if (pdfInput.files[0]) setFile(pdfInput.files[0]);
+    });
+
+    // Drag & drop
+    uploadZone.addEventListener('dragover', (e) => {
         e.preventDefault();
+        uploadZone.classList.add('upload-zone--hover');
+    });
 
-        const sales = document.getElementById('sales').value;
-        const expenses = document.getElementById('expenses').value;
-        const inventory = document.getElementById('inventory').value;
-        const currency = document.getElementById('currency').value;
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('upload-zone--hover');
+    });
 
-        const payload = {
-            sales: parseFloat(sales),
-            expenses: parseFloat(expenses),
-            inventory: parseFloat(inventory),
-            currency: currency
-        };
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('upload-zone--hover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+            setFile(file);
+        } else {
+            fileNameEl.textContent = 'Please drop a PDF file.';
+            fileNameEl.style.color = 'var(--status-red)';
+        }
+    });
+
+    function setFile(file) {
+        selectedFile = file;
+        fileNameEl.textContent = file.name;
+        fileNameEl.style.color = 'var(--status-green)';
+        uploadZone.classList.add('upload-zone--active');
+        analyzeBtn.disabled = false;
+    }
+
+    // Analyze
+    analyzeBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
 
         showView(loadingPage);
 
         try {
+            const base64 = await readFileAsBase64(selectedFile);
+
             const response = await fetch('/analyze', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdf: base64 }),
             });
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'Analysis failed');
             }
 
             const data = await response.json();
@@ -61,10 +92,23 @@ document.addEventListener('DOMContentLoaded', () => {
             showView(resultsPage);
         } catch (error) {
             console.error('Error during analysis:', error);
-            alert('An error occurred while analyzing the data. Please ensure the backend is running.');
+            alert(`Error: ${error.message}\n\nPlease ensure your PDF contains financial figures (sales, expenses, inventory).`);
             showView(formPage);
         }
     });
+
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                // Strip the data URL prefix ("data:application/pdf;base64,")
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
 
     // Render Results Logic
     function renderResults(data) {
@@ -75,29 +119,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         scoreValue.textContent = data.score;
 
-        // Calculate stroke-dashoffset (max 283)
         const offset = 283 - (283 * data.score) / 100;
-        // Small timeout to allow transition to play
-        setTimeout(() => {
-            scoreProgress.style.strokeDashoffset = offset;
-        }, 100);
+        setTimeout(() => { scoreProgress.style.strokeDashoffset = offset; }, 100);
 
-        // Color Indicator Logic for Score
-        let scoreClass = 'status-red';
         let bgClass = 'bg-red';
         let labelText = 'Critical';
         let colorHex = 'var(--status-red)';
 
         if (data.score >= 70) {
-            scoreClass = 'status-green';
-            bgClass = 'bg-green';
-            labelText = 'Healthy';
-            colorHex = 'var(--status-green)';
+            bgClass = 'bg-green'; labelText = 'Healthy'; colorHex = 'var(--status-green)';
         } else if (data.score >= 40) {
-            scoreClass = 'status-yellow';
-            bgClass = 'bg-yellow';
-            labelText = 'Warning';
-            colorHex = 'var(--status-yellow)';
+            bgClass = 'bg-yellow'; labelText = 'Warning'; colorHex = 'var(--status-yellow)';
         }
 
         scoreLabel.textContent = labelText;
@@ -107,8 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. Profit
         const profitValue = document.getElementById('profit-value');
         const profitLabel = document.getElementById('profit-label');
-
         const symbol = data.symbol || '$';
+
         profitValue.textContent = `${symbol}${data.profit.toLocaleString()}`;
         if (data.profit > 0) {
             profitLabel.textContent = "Profitable";
@@ -116,6 +148,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             profitLabel.textContent = "Loss Making";
             profitLabel.className = "badge bg-red";
+        }
+
+        // Profit margin & trend
+        const marginEl = document.getElementById('profit-margin');
+        if (marginEl) marginEl.textContent = data.profitMargin != null ? `${data.profitMargin}%` : '—';
+
+        const trendEl = document.getElementById('trend-value');
+        if (trendEl && data.trend) {
+            const trendMap = { improving: { text: '▲ Improving', cls: 'status-green' }, declining: { text: '▼ Declining', cls: 'status-red' }, stable: { text: '→ Stable', cls: 'status-yellow' } };
+            const t = trendMap[data.trend] || { text: data.trend, cls: '' };
+            trendEl.textContent = t.text;
+            trendEl.className = `kpi-meta-value ${t.cls}`;
         }
 
         // 3. Problems List
@@ -143,7 +187,48 @@ document.addEventListener('DOMContentLoaded', () => {
             suggestionsList.appendChild(li);
         });
 
-        // 5. Simulation
+        // 5. Revenue Breakdown
+        const revCard = document.getElementById('revenue-breakdown-card');
+        const revEl = document.getElementById('revenue-breakdown');
+        if (data.revenue_breakdown && data.revenue_breakdown.length > 0) {
+            revEl.innerHTML = '';
+            revCard.style.display = '';
+            data.revenue_breakdown.forEach(item => {
+                revEl.appendChild(buildBar(item.label, item.value, item.pct, symbol, 'var(--primary)'));
+            });
+        } else {
+            revCard.style.display = 'none';
+        }
+
+        // 6. Expense Breakdown
+        const expCard = document.getElementById('expense-breakdown-card');
+        const expEl = document.getElementById('expense-breakdown');
+        if (data.expense_breakdown && data.expense_breakdown.length > 0) {
+            expEl.innerHTML = '';
+            expCard.style.display = '';
+            data.expense_breakdown.forEach(item => {
+                expEl.appendChild(buildBar(item.label, item.value, item.pct, symbol, 'var(--status-red)'));
+            });
+        } else {
+            expCard.style.display = 'none';
+        }
+
+        // 7. Key Observations
+        const obsCard = document.getElementById('observations-card');
+        const obsList = document.getElementById('observations-list');
+        if (data.observations && data.observations.length > 0) {
+            obsList.innerHTML = '';
+            obsCard.style.display = '';
+            data.observations.forEach(obs => {
+                const li = document.createElement('li');
+                li.textContent = obs;
+                obsList.appendChild(li);
+            });
+        } else {
+            obsCard.style.display = 'none';
+        }
+
+        // 8. Simulation
         const simScenarioText = document.getElementById('sim-scenario-text');
         const simProfit = document.getElementById('sim-new-profit');
         const simChange = document.getElementById('sim-change');
@@ -151,17 +236,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.simulation) {
             simScenarioText.textContent = data.simulation.scenario;
             simProfit.textContent = `${symbol}${data.simulation.new_profit.toLocaleString()}`;
-
             const changeSign = data.simulation.profit_change >= 0 ? '+' : '-';
             const absChange = Math.abs(data.simulation.profit_change);
-            const changeStr = `${changeSign}${symbol}${absChange.toLocaleString()}`;
-            simChange.textContent = changeStr;
-
-            if (data.simulation.profit_change >= 0) {
-                simChange.className = 'value impact-positive';
-            } else {
-                simChange.className = 'value impact-negative';
-            }
+            simChange.textContent = `${changeSign}${symbol}${absChange.toLocaleString()}`;
+            simChange.className = data.simulation.profit_change >= 0 ? 'value impact-positive' : 'value impact-negative';
         }
+    }
+
+    function buildBar(label, value, pct, symbol, color) {
+        const row = document.createElement('div');
+        row.className = 'breakdown-row';
+        row.innerHTML = `
+            <div class="breakdown-label">
+                <span>${label}</span>
+                <span class="breakdown-value">${symbol}${Number(value).toLocaleString()} <span class="breakdown-pct">(${pct}%)</span></span>
+            </div>
+            <div class="breakdown-bar-bg">
+                <div class="breakdown-bar-fill" style="width:0%; background:${color}" data-pct="${pct}"></div>
+            </div>`;
+        setTimeout(() => {
+            row.querySelector('.breakdown-bar-fill').style.width = `${pct}%`;
+        }, 100);
+        return row;
     }
 });
