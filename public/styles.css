@@ -173,7 +173,8 @@ button {
     color: var(--text-muted);
 }
 
-.input-group input {
+.input-group input,
+.input-group select {
     width: 100%;
     padding: 1rem;
     background: rgba(15, 23, 42, 0.6);
@@ -183,11 +184,19 @@ button {
     font-size: 1rem;
     font-family: inherit;
     transition: border-color 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
-.input-group input:focus {
+.input-group input:focus,
+.input-group select:focus {
     outline: none;
     border-color: var(--primary);
+}
+
+.input-group select option {
+    background: #1e293b;
+    color: white;
 }
 
 .submit-btn {
